@@ -743,3 +743,532 @@ class ModernApp:
                 if parent:
                     parent.destroy()
                 self.refresh_minerals_display()
+    def show_country_profiles(self):
+        self.clear_frame()
+        self.create_navigation("Country Profiles")
+        
+        # Create scrollable content
+        scrollable_frame, _ = self.create_scrollable_frame(self.root)
+        
+        # Header with management buttons for admins
+        header_frame = tk.Frame(scrollable_frame, bg='white', relief='raised', bd=1)
+        header_frame.pack(fill='x', pady=(0, 20))
+        
+        total_countries = len(self.data_manager.CountryProfiles)
+        total_production = sum(data['Production'] for data in self.data_manager.CountryProfiles.values())
+        total_gdp = sum(data['GDP'] for data in self.data_manager.CountryProfiles.values())
+        
+        stats_text = f"🌍 Regional Overview: {total_countries} Countries | Total Production: {total_production:,} tons | Combined GDP: R{total_gdp:,}M"
+        tk.Label(header_frame, text=stats_text, font=('Segoe UI', 12, 'bold'),
+                bg='white', fg=self.colors['primary'], pady=15).pack()
+        
+        # Management buttons for administrators
+        if self.current_user_role == "Administrator":
+            manage_frame = tk.Frame(header_frame, bg='white')
+            manage_frame.pack(pady=(0, 10))
+            
+            ttk.Button(manage_frame, text="➕ Add Country", 
+                      style='Primary.TButton',
+                      command=self.show_add_country_form).pack(side='left', padx=5)
+        
+        # Countries display frame
+        self.countries_frame = tk.Frame(scrollable_frame, bg=self.colors['background'])
+        self.countries_frame.pack(fill='both', expand=True)
+        
+        self.refresh_countries_display()
+
+    def show_add_country_form(self):
+        """Show the add country form inline"""
+        if hasattr(self, 'add_country_frame'):
+            self.add_country_frame.pack_forget()
+        
+        self.add_country_frame = tk.Frame(self.countries_frame, bg='white', relief='raised', bd=1)
+        self.add_country_frame.pack(fill='x', padx=20, pady=10, ipadx=10, ipady=10)
+        
+        tk.Label(self.add_country_frame, text="➕ Add New Country", 
+                font=('Segoe UI', 12, 'bold'), bg='white', 
+                fg=self.colors['primary']).pack(anchor='w', pady=(0, 10))
+        
+        # Form fields
+        form_fields = tk.Frame(self.add_country_frame, bg='white')
+        form_fields.pack(fill='x')
+        
+        # Country Name
+        tk.Label(form_fields, text="Country Name:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=0, column=0, sticky='w', pady=5, padx=(0, 10))
+        self.country_name_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        self.country_name_entry.grid(row=0, column=1, sticky='w', pady=5, padx=(0, 20))
+        
+        # Production
+        tk.Label(form_fields, text="Production:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=0, column=2, sticky='w', pady=5, padx=(0, 10))
+        self.country_production_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        self.country_production_entry.grid(row=0, column=3, sticky='w', pady=5, padx=(0, 20))
+        
+        # GDP
+        tk.Label(form_fields, text="GDP (R Millions):", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=1, column=0, sticky='w', pady=5, padx=(0, 10))
+        self.country_gdp_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        self.country_gdp_entry.grid(row=1, column=1, sticky='w', pady=5, padx=(0, 20))
+        
+        # Projects
+        tk.Label(form_fields, text="Projects:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=1, column=2, sticky='w', pady=5, padx=(0, 10))
+        self.country_projects_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        self.country_projects_entry.grid(row=1, column=3, sticky='w', pady=5, padx=(0, 20))
+        
+        # Color
+        tk.Label(form_fields, text="Color:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=2, column=0, sticky='w', pady=5, padx=(0, 10))
+        self.country_color_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        self.country_color_entry.insert(0, "#2ca02c")
+        self.country_color_entry.grid(row=2, column=1, sticky='w', pady=5, padx=(0, 20))
+        
+        # Buttons
+        button_frame = tk.Frame(self.add_country_frame, bg='white')
+        button_frame.pack(fill='x', pady=(10, 0))
+        
+        ttk.Button(button_frame, text="💾 Save Country", style='Primary.TButton',
+                  command=self.save_country).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(button_frame, text="❌ Cancel", style='Secondary.TButton',
+                  command=self.cancel_add_country).pack(side='left')
+
+    def save_country(self):
+        """Save new country from inline form"""
+        name = self.country_name_entry.get().strip()
+        production = self.country_production_entry.get().strip()
+        gdp = self.country_gdp_entry.get().strip()
+        projects = self.country_projects_entry.get().strip()
+        color = self.country_color_entry.get().strip()
+        
+        if not all([name, production, gdp, projects]):
+            messagebox.showerror("Error", "Please fill in all fields")
+            return
+            
+        try:
+            production_val = int(production)
+            gdp_val = int(gdp)
+            projects_val = int(projects)
+        except ValueError:
+            messagebox.showerror("Error", "Production, GDP, and Projects must be numbers")
+            return
+            
+        if name in self.data_manager.CountryProfiles:
+            messagebox.showerror("Error", "Country already exists")
+            return
+            
+        # Use data manager to save country
+        self.data_manager.add_country(name, production_val, gdp_val, projects_val, color)
+        
+        messagebox.showinfo("Success", f"Country '{name}' added successfully!")
+        
+        # Clear form and refresh display
+        self.cancel_add_country()
+        self.refresh_countries_display()
+
+    def cancel_add_country(self):
+        """Cancel adding country and hide form"""
+        if hasattr(self, 'add_country_frame'):
+            self.add_country_frame.pack_forget()
+
+    def refresh_countries_display(self):
+        """Refresh the countries display"""
+        # Clear existing countries display
+        for widget in self.countries_frame.winfo_children():
+            widget.pack_forget()
+        
+        # Show countries
+        for country, profile in self.data_manager.CountryProfiles.items():
+            card = tk.Frame(self.countries_frame, bg='white', relief='raised', bd=1)
+            card.pack(fill='x', padx=20, pady=10, ipadx=10, ipady=10)
+            
+            # Header with country name and actions
+            header = tk.Frame(card, bg='white')
+            header.pack(fill='x', pady=(0, 10))
+            
+            tk.Label(header, text=f"🇿🇦 {country}", font=('Segoe UI', 12, 'bold'),
+                    bg='white', fg=profile['Color']).pack(side='left')
+            
+            # Action buttons for admins
+            if self.current_user_role == "Administrator":
+                action_frame = tk.Frame(header, bg='white')
+                action_frame.pack(side='right')
+                
+                ttk.Button(action_frame, text="✏️ Edit", 
+                          command=lambda c=country: self.edit_country(c),
+                          style='Secondary.TButton').pack(side='left', padx=2)
+                
+                ttk.Button(action_frame, text="🗑️ Remove", 
+                          command=lambda c=country: self.remove_country(c),
+                          style='Secondary.TButton').pack(side='left', padx=2)
+            
+            # Country info
+            info = f"""⚡ Production: {profile['Production']:,} tons
+💰 GDP: R{profile['GDP']:,} Million
+🏗️ Active Projects: {profile['Projects']}
+📊 Economic Rating: {'★★★★☆' if profile['GDP'] > 30000 else '★★★☆☆'}"""
+            
+            tk.Label(card, text=info, font=('Segoe UI', 10),
+                   bg='white', fg=self.colors['dark'], justify='left').pack(anchor='w')
+
+    def edit_country(self, country_name):
+        """Edit country inline"""
+        country_data = self.data_manager.CountryProfiles[country_name]
+        
+        # Create edit form
+        edit_frame = tk.Frame(self.countries_frame, bg='white', relief='raised', bd=1)
+        edit_frame.pack(fill='x', padx=20, pady=10, ipadx=10, ipady=10)
+        
+        tk.Label(edit_frame, text=f"✏️ Edit {country_name}", 
+                font=('Segoe UI', 12, 'bold'), bg='white', 
+                fg=self.colors['primary']).pack(anchor='w', pady=(0, 10))
+        
+        # Form fields
+        form_fields = tk.Frame(edit_frame, bg='white')
+        form_fields.pack(fill='x')
+        
+        # Country Name
+        tk.Label(form_fields, text="Country Name:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=0, column=0, sticky='w', pady=5, padx=(0, 10))
+        edit_name_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        edit_name_entry.insert(0, country_name)
+        edit_name_entry.grid(row=0, column=1, sticky='w', pady=5, padx=(0, 20))
+        
+        # Production
+        tk.Label(form_fields, text="Production:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=0, column=2, sticky='w', pady=5, padx=(0, 10))
+        edit_production_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        edit_production_entry.insert(0, str(country_data['Production']))
+        edit_production_entry.grid(row=0, column=3, sticky='w', pady=5, padx=(0, 20))
+        
+        # GDP
+        tk.Label(form_fields, text="GDP:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=1, column=0, sticky='w', pady=5, padx=(0, 10))
+        edit_gdp_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        edit_gdp_entry.insert(0, str(country_data['GDP']))
+        edit_gdp_entry.grid(row=1, column=1, sticky='w', pady=5, padx=(0, 20))
+        
+        # Projects
+        tk.Label(form_fields, text="Projects:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=1, column=2, sticky='w', pady=5, padx=(0, 10))
+        edit_projects_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        edit_projects_entry.insert(0, str(country_data['Projects']))
+        edit_projects_entry.grid(row=1, column=3, sticky='w', pady=5, padx=(0, 20))
+        
+        # Color
+        tk.Label(form_fields, text="Color:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=2, column=0, sticky='w', pady=5, padx=(0, 10))
+        edit_color_entry = ttk.Entry(form_fields, font=('Segoe UI', 10), width=20)
+        edit_color_entry.insert(0, country_data['Color'])
+        edit_color_entry.grid(row=2, column=1, sticky='w', pady=5, padx=(0, 20))
+        
+        def save_edit():
+            new_name = edit_name_entry.get().strip()
+            production = edit_production_entry.get().strip()
+            gdp = edit_gdp_entry.get().strip()
+            projects = edit_projects_entry.get().strip()
+            color = edit_color_entry.get().strip()
+            
+            if not all([new_name, production, gdp, projects]):
+                messagebox.showerror("Error", "Please fill in all fields")
+                return
+                
+            try:
+                production_val = int(production)
+                gdp_val = int(gdp)
+                projects_val = int(projects)
+            except ValueError:
+                messagebox.showerror("Error", "Production, GDP, and Projects must be numbers")
+                return
+                
+            # Use data manager to update country
+            self.data_manager.update_country(country_name, new_name, production_val, gdp_val, projects_val, color)
+            
+            messagebox.showinfo("Success", f"Country updated successfully!")
+            edit_frame.destroy()
+            self.refresh_countries_display()
+        
+        # Buttons
+        button_frame = tk.Frame(edit_frame, bg='white')
+        button_frame.pack(fill='x', pady=(10, 0))
+        
+        ttk.Button(button_frame, text="💾 Save Changes", style='Primary.TButton',
+                  command=save_edit).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(button_frame, text="❌ Cancel", style='Secondary.TButton',
+                  command=lambda: edit_frame.destroy()).pack(side='left')
+        
+        ttk.Button(button_frame, text="🗑️ Delete", 
+                  command=lambda: self.remove_country(country_name, edit_frame),
+                  style='Secondary.TButton').pack(side='left', padx=(10, 0))
+
+    def remove_country(self, country_name, parent=None):
+        """Remove country with confirmation"""
+        result = messagebox.askyesno("Confirm Removal", 
+                                   f"Are you sure you want to remove {country_name}?")
+        if result:
+            if self.data_manager.delete_country(country_name):
+                messagebox.showinfo("Success", f"Country '{country_name}' removed successfully!")
+                if parent:
+                    parent.destroy()
+                self.refresh_countries_display()
+
+    def show_map(self):
+        """Show map inside the app"""
+        self.clear_frame()
+        self.create_navigation("Interactive Map")
+        
+        # Create main content area
+        content_frame = tk.Frame(self.root, bg=self.colors['background'])
+        content_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        
+        # Map controls
+        controls_frame = tk.Frame(content_frame, bg='white', relief='raised', bd=1)
+        controls_frame.pack(fill='x', pady=(0, 20))
+        
+        tk.Label(controls_frame, text="🗺️ Interactive Mineral Map", 
+                font=('Segoe UI', 14, 'bold'), bg='white', 
+                fg=self.colors['primary']).pack(pady=15)
+        
+        # Map type selection
+        map_type_frame = tk.Frame(controls_frame, bg='white')
+        map_type_frame.pack(pady=(0, 15))
+        
+        tk.Label(map_type_frame, text="Map View:", font=('Segoe UI', 10, 'bold'),
+                bg='white').pack(side='left', padx=(0, 10))
+        
+        self.map_type_var = tk.StringVar(value="satellite")
+        map_types = [("Satellite View", "satellite"), 
+                    ("Road Map", "roadmap"),
+                    ("Terrain View", "terrain")]
+        
+        for text, value in map_types:
+            ttk.Radiobutton(map_type_frame, text=text, value=value,
+                           variable=self.map_type_var, command=self.update_embedded_map).pack(side='left', padx=10)
+        
+        # Map display area
+        map_display_frame = tk.Frame(content_frame, bg='white', relief='raised', bd=1)
+        map_display_frame.pack(fill='both', expand=True, pady=10)
+        
+        # Create embedded map
+        self.create_embedded_map(map_display_frame)
+
+    def create_embedded_map(self, parent):
+        """Create embedded map using TkinterMapView"""
+        try:
+            # Create map widget
+            self.map_widget = TkinterMapView(parent, width=800, height=600, corner_radius=0)
+            self.map_widget.pack(fill='both', expand=True, padx=10, pady=10)
+            
+            # Set initial position (Africa)
+            self.map_widget.set_position(-15.0, 25.0)
+            self.map_widget.set_zoom(4)
+            
+            # Set initial tile server based on selection
+            self.update_embedded_map()
+            
+            # Add markers for mineral locations
+            locations = [
+                {"name": "Cobalt (DRC)", "lat": -4.0, "lon": 15.0, "type": "Cobalt", "production": 1200},
+                {"name": "Lithium (Zimbabwe)", "lat": -20.0, "lon": 30.0, "type": "Lithium", "production": 950},
+                {"name": "Gold (South Africa)", "lat": -30.0, "lon": 25.0, "type": "Gold", "production": 2500},
+                {"name": "Graphite (Mozambique)", "lat": -18.0, "lon": 35.0, "type": "Graphite", "production": 800},
+                {"name": "Manganese (South Africa)", "lat": -28.0, "lon": 24.0, "type": "Manganese", "production": 1500}
+            ]
+            
+            # Add markers to map
+            for loc in locations:
+                marker = self.map_widget.set_marker(
+                    loc["lat"], 
+                    loc["lon"],
+                    text=loc["name"],
+                    command=lambda l=loc: self.show_marker_info(l)
+                )
+                
+        except Exception as e:
+            # Fallback to HTML map if embedded fails
+            tk.Label(parent, text=f"Map loading failed: {str(e)}", 
+                    font=('Segoe UI', 12), bg='white', fg='red').pack(expand=True)
+            self.create_folium_map_fallback(parent)
+
+    def update_embedded_map(self):
+        """Update embedded map based on tile selection"""
+        if hasattr(self, 'map_widget'):
+            map_type = self.map_type_var.get()
+            
+            if map_type == "satellite":
+                self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}&s=Ga", max_zoom=22)
+            elif map_type == "terrain":
+                self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}&s=Ga", max_zoom=22)
+            else:  # roadmap
+                self.map_widget.set_tile_server("https://a.tile.openstreetmap.org/{z}/{x}/{y}.png", max_zoom=22)
+
+    def show_marker_info(self, location):
+        """Show information when marker is clicked"""
+        info_text = f"""
+{location['name']}
+Mineral: {location['type']}
+Production: {location['production']} tonnes/day
+Status: Active mining operations
+"""
+        messagebox.showinfo("Mineral Location", info_text)
+
+    def create_folium_map_fallback(self, parent):
+        """Fallback to HTML map if embedded fails"""
+        # Create folium map
+        locations = [
+            {"name": "Cobalt (DRC)", "lat": -4, "lon": 15, "type": "Cobalt", "production": 1200},
+            {"name": "Lithium (Zimbabwe)", "lat": -20, "lon": 30, "type": "Lithium", "production": 950},
+            {"name": "Gold (South Africa)", "lat": -30, "lon": 25, "type": "Gold", "production": 2500},
+        ]
+        
+        m = folium.Map(location=[-15, 25], zoom_start=4)
+        
+        for loc in locations:
+            folium.Marker(
+                [loc["lat"], loc["lon"]],
+                popup=f"{loc['name']}<br>Production: {loc['production']} tonnes/day",
+                tooltip=loc["name"]
+            ).add_to(m)
+        
+        # Save and open in browser
+        map_file = "mineral_map.html"
+        m.save(map_file)
+        
+        info_label = tk.Label(parent, 
+                            text="Map opened in web browser.\nFile: mineral_map.html",
+                            font=('Segoe UI', 12), bg='white')
+        info_label.pack(expand=True)
+        
+        webbrowser.open('file://' + os.path.realpath(map_file))
+
+    def show_charts(self):
+        self.clear_frame()
+        self.create_navigation("Analytics & Charts")
+        
+        # Create scrollable content
+        scrollable_frame, _ = self.create_scrollable_frame(self.root)
+        
+        # Chart selection controls
+        controls_frame = tk.Frame(scrollable_frame, bg='white', relief='raised', bd=1)
+        controls_frame.pack(fill='x', pady=(0, 20))
+        
+        tk.Label(controls_frame, text="📊 Custom Chart Generator", 
+                font=('Segoe UI', 14, 'bold'), bg='white', 
+                fg=self.colors['primary']).pack(pady=15)
+        
+        # Chart type selection
+        chart_type_frame = tk.Frame(controls_frame, bg='white')
+        chart_type_frame.pack(pady=(0, 15))
+        
+        tk.Label(chart_type_frame, text="Chart Type:", font=('Segoe UI', 10, 'bold'),
+                bg='white').pack(side='left', padx=(0, 10))
+        
+        self.chart_type_var = tk.StringVar(value="mineral_production")
+        chart_types = [
+            ("Mineral Production", "mineral_production"),
+            ("Country GDP", "country_gdp"), 
+            ("Projects Distribution", "projects_pie"),
+            ("Country Production", "country_production"),
+            ("Head-to-Head Comparison", "comparison"),
+            ("All Countries Overview", "all_countries")
+        ]
+        
+        for text, value in chart_types:
+            ttk.Radiobutton(chart_type_frame, text=text, value=value,
+                           variable=self.chart_type_var, command=self.on_chart_type_change).pack(side='left', padx=10)
+        
+        # Comparison controls (initially hidden)
+        self.comparison_frame = tk.Frame(controls_frame, bg='white')
+        
+        # All countries controls (initially hidden)
+        self.all_countries_frame = tk.Frame(controls_frame, bg='white')
+        
+        # Generate chart button
+        ttk.Button(controls_frame, text="🔄 Generate Chart", style='Primary.TButton',
+                  command=self.generate_selected_chart).pack(pady=10)
+        
+        # Chart display area
+        self.chart_frame = tk.Frame(scrollable_frame, bg='white', relief='raised', bd=1)
+        self.chart_frame.pack(fill='both', expand=True, pady=10)
+        
+        # Generate default chart
+        self.generate_selected_chart()
+
+    def on_chart_type_change(self):
+        """Handle chart type change"""
+        chart_type = self.chart_type_var.get()
+        
+        # Hide all control frames first
+        self.comparison_frame.pack_forget()
+        self.all_countries_frame.pack_forget()
+        
+        # Show appropriate controls
+        if chart_type == "comparison":
+            self.show_comparison_controls()
+        elif chart_type == "all_countries":
+            self.show_all_countries_controls()
+
+    def show_comparison_controls(self):
+        """Show controls for head-to-head comparison"""
+        self.comparison_frame.pack(fill='x', pady=10)
+        
+        # Clear previous controls
+        for widget in self.comparison_frame.winfo_children():
+            widget.destroy()
+        
+        tk.Label(self.comparison_frame, text="Select Countries to Compare:", 
+                font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w')
+        
+        selection_frame = tk.Frame(self.comparison_frame, bg='white')
+        selection_frame.pack(fill='x', pady=5)
+        
+        # Country selection
+        countries = list(self.data_manager.CountryProfiles.keys())
+        
+        tk.Label(selection_frame, text="Country 1:", font=('Segoe UI', 9),
+                bg='white').grid(row=0, column=0, padx=5)
+        self.comp_country1 = ttk.Combobox(selection_frame, values=countries, 
+                                         state="readonly", width=15)
+        self.comp_country1.set(countries[0] if countries else "")
+        self.comp_country1.grid(row=0, column=1, padx=5)
+        
+        tk.Label(selection_frame, text="Country 2:", font=('Segoe UI', 9),
+                bg='white').grid(row=0, column=2, padx=5)
+        self.comp_country2 = ttk.Combobox(selection_frame, values=countries, 
+                                         state="readonly", width=15)
+        self.comp_country2.set(countries[1] if len(countries) > 1 else "")
+        self.comp_country2.grid(row=0, column=3, padx=5)
+        
+        # Metric selection
+        tk.Label(selection_frame, text="Compare by:", font=('Segoe UI', 9),
+                bg='white').grid(row=1, column=0, padx=5, pady=5)
+        self.comp_metric = ttk.Combobox(selection_frame, 
+                                       values=["Production", "GDP", "Projects"],
+                                       state="readonly", width=15)
+        self.comp_metric.set("Production")
+        self.comp_metric.grid(row=1, column=1, padx=5, pady=5)
+
+    def show_all_countries_controls(self):
+        """Show controls for all countries overview"""
+        self.all_countries_frame.pack(fill='x', pady=10)
+        
+        # Clear previous controls
+        for widget in self.all_countries_frame.winfo_children():
+            widget.destroy()
+        
+        tk.Label(self.all_countries_frame, text="All Countries Overview Options:", 
+                font=('Segoe UI', 10, 'bold'), bg='white').pack(anchor='w')
+        
+        options_frame = tk.Frame(self.all_countries_frame, bg='white')
+        options_frame.pack(fill='x', pady=5)
+        
+        # Metric selection for all countries
+        tk.Label(options_frame, text="Show:", font=('Segoe UI', 9),
+                bg='white').grid(row=0, column=0, padx=5)
+        self.all_countries_metric = ttk.Combobox(options_frame, 
+                                               values=["Production", "GDP", "Projects", "All Metrics"],
+                                               state="readonly", width=15)
+        self.all_countries_metric.set("All Metrics")
+        self.all_countries_metric.grid(row=0, column=1, padx=5)
