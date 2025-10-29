@@ -1272,3 +1272,435 @@ Status: Active mining operations
                                                state="readonly", width=15)
         self.all_countries_metric.set("All Metrics")
         self.all_countries_metric.grid(row=0, column=1, padx=5)
+    def generate_selected_chart(self):
+        """Generate the selected chart type"""
+        chart_type = self.chart_type_var.get()
+        
+        # Clear previous chart
+        for widget in self.chart_frame.winfo_children():
+            widget.destroy()
+        
+        # Generate the selected chart
+        if chart_type == "mineral_production":
+            self.generate_mineral_production_chart()
+        elif chart_type == "country_gdp":
+            self.generate_country_gdp_chart()
+        elif chart_type == "projects_pie":
+            self.generate_projects_pie_chart()
+        elif chart_type == "country_production":
+            self.generate_country_production_chart()
+        elif chart_type == "comparison":
+            self.generate_comparison_chart()
+        elif chart_type == "all_countries":
+            self.generate_all_countries_chart()
+
+    def generate_mineral_production_chart(self):
+        """Generate mineral production bar chart"""
+        minerals = list(self.data_manager.MineralData.keys())
+        production = [data['Production'] for data in self.data_manager.MineralData.values()]
+        colors = [data['Color'] for data in self.data_manager.MineralData.values()]
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bars = ax.bar(minerals, production, color=colors, alpha=0.8, edgecolor='black')
+        
+        ax.set_title('Mineral Production (tonnes/day)', fontsize=14, fontweight='bold', pad=20)
+        ax.set_ylabel('Production (tonnes/day)')
+        ax.tick_params(axis='x', rotation=45)
+        
+        # Add value labels on bars
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + 50,
+                   f'{height:,}', ha='center', va='bottom', fontweight='bold')
+        
+        plt.tight_layout()
+        
+        # Embed in tkinter
+        self.embed_chart(fig, "Mineral Production Analysis")
+
+    def generate_country_gdp_chart(self):
+        """Generate country GDP bar chart"""
+        countries = list(self.data_manager.CountryProfiles.keys())
+        gdp = [data['GDP'] for data in self.data_manager.CountryProfiles.values()]
+        colors = [data['Color'] for data in self.data_manager.CountryProfiles.values()]
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bars = ax.bar(countries, gdp, color=colors, alpha=0.8, edgecolor='black')
+        
+        ax.set_title('Country GDP (R Millions)', fontsize=14, fontweight='bold', pad=20)
+        ax.set_ylabel('GDP (R Millions)')
+        ax.tick_params(axis='x', rotation=45)
+        
+        # Add value labels on bars
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + 500,
+                   f'R{height:,}M', ha='center', va='bottom', fontweight='bold')
+        
+        plt.tight_layout()
+        self.embed_chart(fig, "Country GDP Analysis")
+
+    def generate_projects_pie_chart(self):
+        """Generate projects distribution pie chart"""
+        countries = list(self.data_manager.CountryProfiles.keys())
+        projects = [data['Projects'] for data in self.data_manager.CountryProfiles.values()]
+        colors = [data['Color'] for data in self.data_manager.CountryProfiles.values()]
+        
+        fig, ax = plt.subplots(figsize=(8, 8))
+        wedges, texts, autotexts = ax.pie(projects, labels=countries, autopct='%1.1f%%', 
+                                         colors=colors, startangle=90)
+        
+        ax.set_title('Mining Projects Distribution', fontsize=14, fontweight='bold', pad=20)
+        
+        # Style the autotexts
+        for autotext in autotexts:
+            autotext.set_color('white')
+            autotext.set_fontweight('bold')
+        
+        plt.tight_layout()
+        self.embed_chart(fig, "Projects Distribution")
+
+    def generate_country_production_chart(self):
+        """Generate country production chart"""
+        countries = list(self.data_manager.CountryProfiles.keys())
+        production = [data['Production'] for data in self.data_manager.CountryProfiles.values()]
+        colors = [data['Color'] for data in self.data_manager.CountryProfiles.values()]
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bars = ax.bar(countries, production, color=colors, alpha=0.8, edgecolor='black')
+        
+        ax.set_title('Country Mineral Production (tons)', fontsize=14, fontweight='bold', pad=20)
+        ax.set_ylabel('Production (tons)')
+        ax.tick_params(axis='x', rotation=45)
+        
+        # Add value labels on bars
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + 50,
+                   f'{height:,}', ha='center', va='bottom', fontweight='bold')
+        
+        plt.tight_layout()
+        self.embed_chart(fig, "Country Production Analysis")
+
+    def generate_comparison_chart(self):
+        """Generate head-to-head comparison chart"""
+        if not hasattr(self, 'comp_country1') or not self.comp_country1.get():
+            return
+            
+        country1 = self.comp_country1.get()
+        country2 = self.comp_country2.get()
+        metric = self.comp_metric.get()
+        
+        if country1 == country2:
+            messagebox.showwarning("Selection Error", "Please select two different countries for comparison")
+            return
+        
+        # Get data for comparison
+        data1 = self.data_manager.CountryProfiles[country1]
+        data2 = self.data_manager.CountryProfiles[country2]
+        
+        metrics_map = {"Production": "Production", "GDP": "GDP", "Projects": "Projects"}
+        metric_key = metrics_map[metric]
+        
+        values = [data1[metric_key], data2[metric_key]]
+        colors = [data1['Color'], data2['Color']]
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bars = ax.bar([country1, country2], values, color=colors, alpha=0.8, edgecolor='black', width=0.6)
+        
+        ax.set_title(f'{country1} vs {country2} - {metric} Comparison', 
+                    fontsize=14, fontweight='bold', pad=20)
+        ax.set_ylabel(metric)
+        
+        # Add value labels on bars
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + max(values)*0.05,
+                   f'{height:,}', ha='center', va='bottom', fontweight='bold', fontsize=12)
+        
+        plt.tight_layout()
+        self.embed_chart(fig, f"Head-to-Head: {country1} vs {country2}")
+
+    def generate_all_countries_chart(self):
+        """Generate chart showing all countries with selected metrics"""
+        countries = list(self.data_manager.CountryProfiles.keys())
+        metric = getattr(self, 'all_countries_metric', ttk.Combobox()).get() if hasattr(self, 'all_countries_metric') else "All Metrics"
+        
+        if metric == "All Metrics":
+            # Create subplots for all metrics
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+            fig.suptitle('All Countries - Comprehensive Overview', fontsize=16, fontweight='bold', y=0.95)
+            
+            # Production
+            production = [data['Production'] for data in self.data_manager.CountryProfiles.values()]
+            colors = [data['Color'] for data in self.data_manager.CountryProfiles.values()]
+            bars1 = ax1.bar(countries, production, color=colors, alpha=0.8)
+            ax1.set_title('Production (tons)', fontweight='bold')
+            ax1.tick_params(axis='x', rotation=45)
+            for bar in bars1:
+                height = bar.get_height()
+                ax1.text(bar.get_x() + bar.get_width()/2., height + 50,
+                        f'{height:,}', ha='center', va='bottom', fontweight='bold', fontsize=8)
+            
+            # GDP
+            gdp = [data['GDP'] for data in self.data_manager.CountryProfiles.values()]
+            bars2 = ax2.bar(countries, gdp, color=colors, alpha=0.8)
+            ax2.set_title('GDP (R Millions)', fontweight='bold')
+            ax2.tick_params(axis='x', rotation=45)
+            for bar in bars2:
+                height = bar.get_height()
+                ax2.text(bar.get_x() + bar.get_width()/2., height + 500,
+                        f'R{height:,}M', ha='center', va='bottom', fontweight='bold', fontsize=8)
+            
+            # Projects
+            projects = [data['Projects'] for data in self.data_manager.CountryProfiles.values()]
+            bars3 = ax3.bar(countries, projects, color=colors, alpha=0.8)
+            ax3.set_title('Projects Count', fontweight='bold')
+            ax3.tick_params(axis='x', rotation=45)
+            for bar in bars3:
+                height = bar.get_height()
+                ax3.text(bar.get_x() + bar.get_width()/2., height + 0.1,
+                        f'{height}', ha='center', va='bottom', fontweight='bold', fontsize=8)
+            
+            # Pie chart for projects distribution
+            ax4.pie(projects, labels=countries, autopct='%1.1f%%', colors=colors, startangle=90)
+            ax4.set_title('Projects Distribution', fontweight='bold')
+            
+            plt.tight_layout()
+            self.embed_chart(fig, "All Countries Comprehensive Overview")
+            
+        else:
+            # Single metric chart
+            metrics_map = {"Production": "Production", "GDP": "GDP", "Projects": "Projects"}
+            metric_key = metrics_map[metric]
+            
+            values = [data[metric_key] for data in self.data_manager.CountryProfiles.values()]
+            colors = [data['Color'] for data in self.data_manager.CountryProfiles.values()]
+            
+            fig, ax = plt.subplots(figsize=(12, 8))
+            bars = ax.bar(countries, values, color=colors, alpha=0.8, edgecolor='black')
+            
+            ax.set_title(f'All Countries - {metric} Overview', fontsize=14, fontweight='bold', pad=20)
+            ax.set_ylabel(metric)
+            ax.tick_params(axis='x', rotation=45)
+            
+            # Add value labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + max(values)*0.01,
+                       f'{height:,}', ha='center', va='bottom', fontweight='bold', fontsize=10)
+            
+            plt.tight_layout()
+            self.embed_chart(fig, f"All Countries - {metric}")
+
+    def embed_chart(self, fig, title):
+        """Embed matplotlib chart in tkinter frame"""
+        # Create a frame for the chart
+        chart_display_frame = tk.Frame(self.chart_frame, bg='white')
+        chart_display_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        # Add title
+        tk.Label(chart_display_frame, text=title, font=('Segoe UI', 12, 'bold'),
+                bg='white', fg=self.colors['primary']).pack(pady=10)
+        
+        # Embed the chart
+        canvas = FigureCanvasTkAgg(fig, chart_display_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill='both', expand=True)
+
+    def show_data_tables(self):
+        """Show data in table format"""
+        self.clear_frame()
+        self.create_navigation("Data Tables")
+        
+        # Create scrollable content
+        scrollable_frame, _ = self.create_scrollable_frame(self.root)
+        
+        # Create notebook for tabs
+        notebook = ttk.Notebook(scrollable_frame)
+        notebook.pack(fill='both', expand=True, pady=10)
+        
+        # Minerals tab
+        minerals_frame = ttk.Frame(notebook)
+        notebook.add(minerals_frame, text="📊 Minerals Data")
+        
+        # Create minerals table
+        minerals_columns = ('Mineral', 'Location', 'Production', 'Color')
+        minerals_tree = ttk.Treeview(minerals_frame, columns=minerals_columns, show='headings', height=8)
+        
+        for col in minerals_columns:
+            minerals_tree.heading(col, text=col)
+            minerals_tree.column(col, width=150)
+        
+        for mineral, data in self.data_manager.MineralData.items():
+            minerals_tree.insert('', 'end', values=(
+                mineral, data['Location'], data['Production'], data['Color']
+            ))
+        
+        minerals_tree.pack(side='left', fill='both', expand=True, padx=10, pady=10)
+        
+        # Scrollbar for minerals
+        minerals_scrollbar = ttk.Scrollbar(minerals_frame, orient='vertical', command=minerals_tree.yview)
+        minerals_tree.configure(yscrollcommand=minerals_scrollbar.set)
+        minerals_scrollbar.pack(side='right', fill='y')
+        
+        # Countries tab
+        countries_frame = ttk.Frame(notebook)
+        notebook.add(countries_frame, text="🌍 Countries Data")
+        
+        # Create countries table
+        countries_columns = ('Country', 'Production', 'GDP', 'Projects', 'Color')
+        countries_tree = ttk.Treeview(countries_frame, columns=countries_columns, show='headings', height=8)
+        
+        for col in countries_columns:
+            countries_tree.heading(col, text=col)
+            countries_tree.column(col, width=120)
+        
+        for country, data in self.data_manager.CountryProfiles.items():
+            countries_tree.insert('', 'end', values=(
+                country, data['Production'], data['GDP'], data['Projects'], data['Color']
+            ))
+        
+        countries_tree.pack(side='left', fill='both', expand=True, padx=10, pady=10)
+        
+        # Scrollbar for countries
+        countries_scrollbar = ttk.Scrollbar(countries_frame, orient='vertical', command=countries_tree.yview)
+        countries_tree.configure(yscrollcommand=countries_scrollbar.set)
+        countries_scrollbar.pack(side='right', fill='y')
+
+    def manage_users(self):
+        self.clear_frame()
+        self.create_navigation("User Management")
+        
+        # Create scrollable content
+        scrollable_frame, _ = self.create_scrollable_frame(self.root)
+        
+        # Current users section
+        users_card = tk.Frame(scrollable_frame, bg='white', relief='raised', bd=1)
+        users_card.pack(fill='both', expand=True, pady=(0, 20))
+        
+        tk.Label(users_card, text="👥 Current Users", font=('Segoe UI', 14, 'bold'),
+                bg='white', fg=self.colors['primary']).pack(anchor='w', padx=20, pady=15)
+        
+        # Users list with scrollbar
+        list_frame = tk.Frame(users_card, bg='white')
+        list_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        
+        # Create treeview for users
+        columns = ('Username', 'Role', 'Actions')
+        tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=8)
+        
+        # Define headings
+        tree.heading('Username', text='Username')
+        tree.heading('Role', text='Role')
+        tree.heading('Actions', text='Actions')
+        
+        tree.column('Username', width=200)
+        tree.column('Role', width=150)
+        tree.column('Actions', width=100)
+        
+        # Add users to treeview
+        for username, info in self.data_manager.Users.items():
+            tree.insert('', 'end', values=(username, info['role'], 'Remove'))
+        
+        tree.pack(side='left', fill='both', expand=True)
+        
+        # Scrollbar for treeview
+        scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side='right', fill='y')
+        
+        # Bind remove action
+        def on_item_click(event):
+            item = tree.selection()[0]
+            username = tree.item(item, 'values')[0]
+            if username != self.current_user:  # Prevent self-removal
+                self.remove_user(username)
+            else:
+                messagebox.showwarning("Action Denied", "You cannot remove your own account while logged in.")
+        
+        tree.bind('<Double-1>', on_item_click)
+        
+        # Add new user section
+        add_user_card = tk.Frame(scrollable_frame, bg='white', relief='raised', bd=1)
+        add_user_card.pack(fill='x', pady=10)
+        
+        tk.Label(add_user_card, text="➕ Add New User", font=('Segoe UI', 14, 'bold'),
+                bg='white', fg=self.colors['primary']).pack(anchor='w', padx=20, pady=15)
+        
+        form_frame = tk.Frame(add_user_card, bg='white')
+        form_frame.pack(fill='x', padx=20, pady=(0, 20))
+        
+        # Username
+        tk.Label(form_frame, text="Username:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=0, column=0, sticky='w', pady=5)
+        self.new_username_entry = ttk.Entry(form_frame, font=('Segoe UI', 10), width=20)
+        self.new_username_entry.grid(row=0, column=1, sticky='w', padx=10, pady=5)
+        
+        # Password
+        tk.Label(form_frame, text="Password:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=1, column=0, sticky='w', pady=5)
+        self.new_password_entry = ttk.Entry(form_frame, show="•", font=('Segoe UI', 10), width=20)
+        self.new_password_entry.grid(row=1, column=1, sticky='w', padx=10, pady=5)
+        
+        # Role
+        tk.Label(form_frame, text="Role:", font=('Segoe UI', 10, 'bold'),
+                bg='white').grid(row=2, column=0, sticky='w', pady=5)
+        self.new_role_var = tk.StringVar(value="Researcher")
+        role_menu = ttk.Combobox(form_frame, textvariable=self.new_role_var,
+                               values=["Administrator", "Investor", "Researcher"],
+                               state="readonly", width=18)
+        role_menu.grid(row=2, column=1, sticky='w', padx=10, pady=5)
+        
+        # Add button
+        ttk.Button(form_frame, text="Add User", style='Primary.TButton',
+                  command=self.add_user).grid(row=3, column=0, columnspan=2, pady=15)
+
+    def create_navigation(self, title):
+        """Create navigation header for sub-pages"""
+        nav_frame = tk.Frame(self.root, bg=self.colors['primary'], height=60)
+        nav_frame.pack(fill='x', side='top')
+        nav_frame.pack_propagate(False)
+        
+        # Back button and title
+        back_btn = ttk.Button(nav_frame, text="← Back to Dashboard", 
+                             style='Secondary.TButton',
+                             command=self.build_dashboard)
+        back_btn.pack(side='left', padx=20, pady=10)
+        
+        tk.Label(nav_frame, text=title, font=('Segoe UI', 16, 'bold'),
+                bg=self.colors['primary'], fg='white').pack(expand=True)
+        
+        # User info
+        user_info = tk.Label(nav_frame, 
+                           text=f"👤 {self.current_user} ({self.current_user_role})",
+                           font=('Segoe UI', 10),
+                           bg=self.colors['primary'], fg=self.colors['light'])
+        user_info.pack(side='right', padx=20, pady=10)
+
+    def add_user(self):
+        username = self.new_username_entry.get()
+        password = self.new_password_entry.get()
+        role = self.new_role_var.get()
+
+        if not username or not password:
+            messagebox.showerror("Error", "Please fill in all fields")
+            return
+        if username in self.data_manager.Users:
+            messagebox.showerror("Error", "Username already exists")
+            return
+            
+        self.data_manager.add_user(username, password, role)
+        messagebox.showinfo("Success", f"User '{username}' added successfully!")
+        self.manage_users()
+
+    def remove_user(self, username):
+        if self.data_manager.delete_user(username):
+            messagebox.showinfo("Success", f"User '{username}' removed successfully!")
+            self.manage_users()
+
+# Run the app
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ModernApp(root)
+    root.mainloop()
